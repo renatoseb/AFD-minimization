@@ -1,8 +1,5 @@
-#include <stdio.h>
 #include <iostream>
 #include <vector>
-#include <list>
+#include <utility>
 #include <unordered_map>
-#include <string>
 #include <sstream>
-#include "state.h"
