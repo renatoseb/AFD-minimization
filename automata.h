@@ -1,6 +1,7 @@
 #pragma once
 #include "common.h"
 #include "state.h"
+
 class Automata{
     int initialState;
     std::vector<state> states;
@@ -9,6 +10,7 @@ class Automata{
 public:
     friend std::istream& operator>>(std::istream& ist, Automata& afd);
     friend std::ostream& operator<<(std::ostream& ost, Automata &afd);
+    void reverse(Automata &afd);
 };
 
 
@@ -52,3 +54,27 @@ std::ostream& operator<<(std::ostream& ost, Automata &afd){
     }
     return ost;
 }
+
+void Automata::reverse(Automata &afd){
+    //create temp to store the current initital state
+    int temp_current_initial = afd.initialState;
+    //create a new initial state
+    int new_initial = afd.states.size();
+    //convert the old initial state in final state
+
+    //add the new initial state in the automata
+    afd.initialState = new_initial;
+    //invert the edges
+    for(int i = 0; i < afd.states.size();i++){
+            afd.states[q].adjacentes[a] = p;
+    }
+    //convert final state to normal states
+    for(int i = 0; i < nFinalStates; i++){
+        int sf;
+        ist >> sf;
+        afd.stateFinal[sf] = false;
+    }
+    //add initial transition e to the final states
+
+}
+
