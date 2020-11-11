@@ -20,6 +20,7 @@ class Automata{
         void pushState(state st){
             states.push_back(st);
         }
+        std::vector<std::vector<bool>> Automata::equivalenceAlgorithm();
         Automata brzozowski();
 };
 
@@ -34,6 +35,58 @@ class Automata{
         afn(Automata afd);
 };*/
 
+std::vector<std::vector<bool>> Automata::equivalenceAlgorithm(){
+    int nStates = states.size();
+    std::vector<std::vector<bool>> marked(nStates,std::vector<bool>(nStates));
+    for(int i = 0; i < nStates;i++){
+        for(int j = 0; j < nStates;j++){
+            marked[i][j] = false;
+        }
+    }
+    for(int i = 0; i < nStates; i++){
+        if(stateFinal[i]){
+            for(int j = 0; j < nStates;j++){
+                if(i == j) continue;
+                if(!stateFinal[j]){
+                    marked[i][j] = 1;
+                    marked[j][i] = 1;
+                }
+            }
+        }
+    }
+    for(int i = 0; i < nStates; i++){
+        for(int j = 0; j < nStates; j++){
+            if(i == j) continue;
+            for(int k = 0; k < 2; k++){
+                if(marked[states[i].adjacentes[k]][states[j].adjacentes[k]] || marked[states[j].adjacentes[k]][states[i].adjacentes[k]])
+                    marked[i][j] = 1;
+            }
+        }
+    }
+    // unmarked 
+    for(int i = 0; i < nStates; i++){
+        for(int j = 0; j < nStates; j++){
+            if(i == j) continue;
+            if(!marked[i][j]){
+                for(int u = 0; u < 2; u++){
+                    if(marked[states[i].adjacentes[u]][states[j].adjacentes[u]] ||marked[states[j].adjacentes[u]][states[i].adjacentes[u]])
+                        marked[i][j] = 1;
+                }
+            }
+        }
+    }
+
+    std::cout <<'\n';
+    for (int i = 0; i < nStates; i++) {
+        for (int j = 0; j < nStates; j++) {
+            std::cout << marked[i][j] << " ";
+        }
+        std::cout << '\n';
+    }
+    std::cout <<'\n';
+    
+    return marked;
+}
 
 Automata Automata::brzozowski(){
     return powerset((powerset(this->reverse())).reverse());
