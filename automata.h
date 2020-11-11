@@ -212,6 +212,7 @@ Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bo
         for(size_t i = 0; i<2; i++){
             std::vector<state_afn> t = clausura(delta(q,i));
             transitions[i] = t;
+            
             for(auto j: Q){
                 if(j == t){
 
