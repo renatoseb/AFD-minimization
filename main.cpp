@@ -5,8 +5,9 @@
         Automata a;
         Automata b;
         std::cin >> a;
+        a.equivalenceAlgorithm();
         //std::cout << a;
-        b = a.brzozowski();
+        /*b = a.brzozowski();
         std::cout << b;
 
         auto reverse_  = a.reverse();
@@ -14,6 +15,6 @@
         reverse_ = a.reverse();
 
         std::cout << "AFD REVERSED: \n";
-        printAfn(reverse_);
+        printAfn(reverse_);*/
         return 0;
     }

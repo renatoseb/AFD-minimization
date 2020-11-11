@@ -16,8 +16,63 @@ class Automata{
         void pushState(state st){
             states.push_back(st);
         }
-        Automata brzozowski();
+        //Automata brzozowski();
+        std::vector<std::vector<bool>> equivalenceAlgorithm();
 };
+
+std::vector<std::vector<bool>> Automata::equivalenceAlgorithm(){
+    int nStates = states.size();
+    std::vector<std::vector<bool>> marked(nStates,std::vector<bool>(nStates));
+    for(int i = 0; i < nStates;i++){
+        for(int j = 0; j < nStates;j++){
+            marked[i][j] = false;
+        }
+    }
+    for(int i = 0; i < nStates; i++){
+        if(stateFinal[i]){
+            for(int j = 0; j < nStates;j++){
+                if(i == j) continue;
+                if(!stateFinal[j]){
+                    marked[i][j] = 1;
+                    marked[j][i] = 1;
+                }
+            }
+        }
+    }
+    for(int i = 0; i < nStates; i++){
+        for(int j = 0; j < nStates; j++){
+            if(i == j) continue;
+            for(int k = 0; k < 2; k++){
+                if(marked[states[i].adjacentes[k]][states[j].adjacentes[k]] || marked[states[j].adjacentes[k]][states[i].adjacentes[k]])
+                    marked[i][j] = 1;
+            }
+        }
+    }
+    // unmarked 
+    for(int i = 0; i < nStates; i++){
+        for(int j = 0; j < nStates; j++){
+            if(i == j) continue;
+            if(!marked[i][j]){
+                for(int u = 0; u < 2; u++){
+                    if(marked[states[i].adjacentes[u]][states[j].adjacentes[u]] ||marked[states[j].adjacentes[u]][states[i].adjacentes[u]])
+                        marked[i][j] = 1;
+                }
+            }
+        }
+    }
+
+    std::cout <<'\n';
+    for (int i = 0; i < nStates; i++) {
+        for (int j = 0; j < nStates; j++) {
+            std::cout << marked[i][j] << " ";
+        }
+        std::cout << '\n';
+    }
+    std::cout <<'\n';
+    
+    return marked;
+}
+
 
 /*class afn{
     
@@ -30,7 +85,7 @@ class Automata{
         afn(Automata afd);
 };*/
 
-
+/*
 Automata Automata::brzozowski(){
     // auto reverse = this->reverse();
     // Automata tempAutomata = powerset(reverse);   
@@ -39,7 +94,7 @@ Automata Automata::brzozowski(){
 
     return powerset((powerset(this->reverse())).reverse());
 }
-
+*/
 
 std::istream& operator>>(std::istream& ist, Automata& afd){
     int nStates, firstState, nFinalStates;
@@ -104,7 +159,7 @@ afn::afn(Automata afd){
     initialState = afd.get_initialState();
     
 }*/
-
+/*
 std::tuple<int,std::vector<state_afn>,std::vector<bool>> Automata::reverse(){
     int newState = states.size();
     std::cout << newState << '\n';
@@ -244,7 +299,7 @@ Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bo
         } 
     }
 
-}
+}*/
 
 // 4 3 1 0
 // 0 0
