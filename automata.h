@@ -184,21 +184,38 @@ void printAfn(std::tuple<int,std::vector<state_afn>,std::vector<bool>> &afn){
     }
 }
 
-std::vector<state_afn> clausura(std::vector<state_afn> states){
-
+std::vector<state_afn> clausura(std::vector<int> states, std::vector<state_afn> &afn){
+    std::vector<state_afn> c; 
+    for(auto i:states){
+        recClausura(afn[i].adjacentes[2],afn,c);
+    }
 }
 
-std::vector<state_afn> delta(std::vector<state_afn> states, int c){
+state_afn recClausura(std::vector<state_afn> states,std::vector<state_afn> &afn, std::vector<state_afn> c){
+    
+}
 
+std::vector<int> delta(std::vector<state_afn> q, int c, std::vector<state_afn> &afn){
+    std::vector<int> result_delta;
+    for(size_t i=0; i<afn.size(); i++){                                              // Recorremos cada estado
+            std::cout << "state: " << i << '\n';
+        for (size_t j=0; j<q.size(); j++){ 
+                if(i == q[j])
+                    result_delta.push_back(afn[i].adjacentes[c]);
+            }
+    }
+
+        return result_delta;
 }
 
 Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bool>> afn){
-    
     Automata automata; 
+
     std::vector<state_afn> initialState;
     initialState.push_back(std::get<1>(afn)[std::get<0>(afn)]);
-    std::vector<state_afn> q_0 = clausura(initialState);
-    std::vector<std::vector<int>> T;
+    std::vector<state_afn> q_0 = clausura(initialState,std::get<1>(afn));
+    std::vector<std::vector<std::vector<state_afn>>> T;
+
     std::vector<std::vector<state_afn>> Q; 
     Q.push_back(q_0);
 
@@ -208,16 +225,22 @@ Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bo
     while(!workList.empty()){
         std::vector<state_afn> q = workList.front();
         workList.pop();
-        std::vector<state_afn> transitions[2];
+        std::vector<std::vector<state_afn>> transitions(2);
         for(size_t i = 0; i<2; i++){
             std::vector<state_afn> t = clausura(delta(q,i));
             transitions[i] = t;
-            
+            bool flag = false;
             for(auto j: Q){
                 if(j == t){
-
+                    flag = true;
+                    break;
                 }
             }
+            if(flag == false){
+                Q.push_back(t);
+                workList.push(t);
+            }
+            T.push_back(transitions);
         } 
     }
 
