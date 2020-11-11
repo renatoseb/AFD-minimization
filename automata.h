@@ -1,7 +1,7 @@
 #pragma once
 #include "common.h"
 #include "state.h"
-
+using namespace std;
 class Automata{
     int initialState;
     std::vector<state> states;
@@ -11,6 +11,10 @@ class Automata{
     Automata powerset(std::tuple<int,std::vector<state_afn>,std::vector<bool>> afn);
 
     public:
+        /*Automata(int numStates){
+            states = std::vector<state>(numStates);
+            stateFinal = std::vector<bool>(numStates,false);
+        }*/
         friend std::istream& operator>>(std::istream& ist, Automata& afd);
         friend std::ostream& operator<<(std::ostream& ost, Automata &afd);
         void pushState(state st){
@@ -32,11 +36,6 @@ class Automata{
 
 
 Automata Automata::brzozowski(){
-    // auto reverse = this->reverse();
-    // Automata tempAutomata = powerset(reverse);   
-    // reverse = tempAutomata.reverse(); 
-    // tempAutomata = powerset(reverse);
-
     return powerset((powerset(this->reverse())).reverse());
 }
 
@@ -184,67 +183,101 @@ void printAfn(std::tuple<int,std::vector<state_afn>,std::vector<bool>> &afn){
     }
 }
 
-std::vector<state_afn> clausura(std::vector<int> states, std::vector<state_afn> &afn){
-    std::vector<state_afn> c; 
-    for(auto i:states){
-        recClausura(afn[i].adjacentes[2],afn,c);
-    }
-}
 
-state_afn recClausura(std::vector<state_afn> states,std::vector<state_afn> &afn, std::vector<state_afn> c){
-    
-}
-
-std::vector<int> delta(std::vector<state_afn> q, int c, std::vector<state_afn> &afn){
-    std::vector<int> result_delta;
-    for(size_t i=0; i<afn.size(); i++){                                              // Recorremos cada estado
-            std::cout << "state: " << i << '\n';
-        for (size_t j=0; j<q.size(); j++){ 
-                if(i == q[j])
-                    result_delta.push_back(afn[i].adjacentes[c]);
+std::set<int> clausura(std::set<int> states, std::vector<state_afn>& afn){
+    std::queue<int> q;
+    std::set<int> clausuraResult;
+    for(auto it=states.begin(); it!=states.end(); ++it){
+        q.push(*it);
+        clausuraResult.insert(*it);
+        while(!q.empty()){
+            int currState = q.front();
+            q.pop();
+            for(size_t j=0; j<afn[currState].adjacentes[2].size(); j++){
+                auto temp = (afn[currState].adjacentes[2])[j];
+                if(clausuraResult.find(temp) == clausuraResult.end()){
+                    clausuraResult.insert(temp);
+                    q.push(temp);
+                }
             }
+        }
     }
+    return clausuraResult;
+}
 
-        return result_delta;
+std::set<int> delta(std::set<int> q, int c, std::vector<state_afn> &afn){
+    std::set<int> result_delta;
+    auto it = q.begin();
+    while (it != q.end()){                                                      // Recorremos el set
+        for(size_t j=0; j< afn[*it].adjacentes[c].size(); j++){                 // Recoremos para ver a que estados llega desde *it con transiciones c
+            result_delta.insert((afn[*it].adjacentes[c])[j]);
+        }
+        it++;
+    }
+    return result_delta;
 }
 
 Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bool>> afn){
-    Automata automata; 
-
-    std::vector<state_afn> initialState;
-    initialState.push_back(std::get<1>(afn)[std::get<0>(afn)]);
-    std::vector<state_afn> q_0 = clausura(initialState,std::get<1>(afn));
-    std::vector<std::vector<std::vector<state_afn>>> T;
-
-    std::vector<std::vector<state_afn>> Q; 
+    std::set<int> initialState;
+    initialState.insert(std::get<0>(afn));                                                          // Estado inicial
+    std::set<int> q_0 = clausura(initialState,std::get<1>(afn));
+    
+    std::vector<std::set<int>> Q;                                                                   // Vector de estados
     Q.push_back(q_0);
-
-    std::queue<std::vector<state_afn>> workList;
+    
+    std::map<std::set<int>,std::tuple<std::set<int>,std::set<int>>> transitions;                    // Mapa de transiciones
+    
+    std::queue<std::set<int>> workList;                                                             // Vector de control de estados
     workList.push(q_0);
 
     while(!workList.empty()){
-        std::vector<state_afn> q = workList.front();
+        std::set<int> q = workList.front();
         workList.pop();
-        std::vector<std::vector<state_afn>> transitions(2);
-        for(size_t i = 0; i<2; i++){
-            std::vector<state_afn> t = clausura(delta(q,i));
-            transitions[i] = t;
-            bool flag = false;
-            for(auto j: Q){
-                if(j == t){
-                    flag = true;
-                    break;
-                }
-            }
-            if(flag == false){
+        
+        std::tuple<std::set<int>,std::set<int>> trans;
+        for(int i = 0; i<2; i++){
+            std::set<int> t = clausura(delta(q,i,std::get<1>(afn)),std::get<1>(afn));
+            
+            if(i == 0) std::get<0>(trans) = t;
+            else std::get<1>(trans) = t;
+            
+            auto it = std::find(Q.begin(),Q.end(),t);
+            if(it == Q.end()){
                 Q.push_back(t);
                 workList.push(t);
             }
-            T.push_back(transitions);
         } 
+        transitions.insert(std::pair<std::set<int>,std::tuple<std::set<int>,std::set<int>>> (q,trans));
     }
 
+    Automata afdResult;
+    afdResult.initialState = 0;
+    afdResult.states = std::vector<state>(Q.size());
+    afdResult.stateFinal = std::vector<bool>(Q.size(),false);
+    for(size_t i = 0; i<Q.size(); ++i){
+        std::tuple<std::set<int>,std::set<int>> trans = transitions[Q[i]];
+        auto transZero = std::find(Q.begin(),Q.end(),  std::get<0>(trans));
+        auto transOne = std::find(Q.begin(),Q.end(),  std::get<1>(trans));
+        afdResult.states[i].adjacentes[0] = transZero - Q.begin();
+        afdResult.states[i].adjacentes[1] = transOne - Q.begin();
+
+        // Pasamos los valores finales
+        for(size_t j = 0; j<std::get<2>(afn).size(); ++j){
+            if(std::get<2>(afn)[j] == true){
+                auto itFinal = std::find(Q[i].begin(),Q[i].end(), j);
+                if(itFinal != Q[i].end()){
+                    afdResult.stateFinal[i] = true;
+                }
+            }
+        }
+    }
+
+    return afdResult;
 }
+
+
+
+
 
 // 4 3 1 0
 // 0 0
