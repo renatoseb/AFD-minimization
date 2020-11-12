@@ -2,43 +2,118 @@
 #include "common.h"
 #include "state.h"
 using namespace std;
+
+
 class Automata{
     int initialState;
     std::vector<state> states;
     std::vector<bool> stateFinal;
-    
+
     std::tuple<int,std::vector<state_afn>,std::vector<bool>> reverse();
     Automata powerset(std::tuple<int,std::vector<state_afn>,std::vector<bool>> afn);
 
     public:
-        /*Automata(int numStates){
-            states = std::vector<state>(numStates);
-            stateFinal = std::vector<bool>(numStates,false);
-        }*/
         friend std::istream& operator>>(std::istream& ist, Automata& afd);
         friend std::ostream& operator<<(std::ostream& ost, Automata &afd);
-        void pushState(state st){
-            states.push_back(st);
-        }
+        std::vector<std::vector<bool>> equivalenceAlgorithm();
         Automata brzozowski();
 };
 
-/*class afn{
-    
-    int initialState;
-    std::vector<state_afn> states;
-    std::vector<bool> stateFinal;
-    
-    public:
-        afn(int initialState, int cantStates, int cantFinals);
-        afn(Automata afd);
-};*/
+std::vector<std::vector<bool>> Automata::equivalenceAlgorithm(){
+    int nStates = states.size();
+    std::vector<std::vector<bool>> marked(nStates,std::vector<bool>(nStates));
+    for(int i = 0; i < nStates;i++){
+        for(int j = 0; j < nStates;j++){
+            marked[i][j] = false;   
+        }
+    }
+    for(int i = 0; i < nStates; i++){
+        if(stateFinal[i]){
+            for(int j = 0; j < nStates;j++){
+                if(i == j) continue;
+                if(!stateFinal[j]){
+                    marked[i][j] = 1;
+                    marked[j][i] = 1;
+                }
+            }
+        }
+    }
+    for(int i = 0; i < nStates; i++){
+        for(int j = 0; j < nStates; j++){
+            if(i == j) continue;
+            for(int k = 0; k < 2; k++){
+                if(marked[states[i].adjacentes[k]][states[j].adjacentes[k]] || marked[states[j].adjacentes[k]][states[i].adjacentes[k]])
+                    marked[i][j] = 1;
+            }
+        }
+    }
+    // unmarked 
+    for(int i = 0; i < nStates; i++){
+        for(int j = 0; j < nStates; j++){
+            if(i == j) continue;
+            if(!marked[i][j]){
+                for(int u = 0; u < 2; u++){
+                    if(marked[states[i].adjacentes[u]][states[j].adjacentes[u]] ||marked[states[j].adjacentes[u]][states[i].adjacentes[u]])
+                        marked[i][j] = 1;
+                }
+            }
+        }
+    }
 
-
-Automata Automata::brzozowski(){
-    return powerset((powerset(this->reverse())).reverse());
+    std::cout <<'\n';
+    for (int i = 0; i < nStates; i++) {
+        for (int j = 0; j < nStates; j++) {
+            std::cout << marked[i][j] << " ";
+        }
+        std::cout << '\n';
+    }
+    std::cout <<'\n';
+    
+    return marked;
 }
 
+void printAfn(std::tuple<int,std::vector<state_afn>,std::vector<bool>> &afn){
+    int numfinalStates = 0;
+    std::cout << std::get<1>(afn).size() << " " << std::get<0>(afn) << " ";
+    for(int i = 0; i< std::get<2>(afn).size(); ++i){
+        if(std::get<2>(afn)[i] == true){
+            numfinalStates++;
+        }
+    }
+    std::cout << numfinalStates << " "; 
+    for(int i = 0; i< std::get<2>(afn).size(); ++i){
+        if(std::get<2>(afn)[i] == true){
+            std::cout << i << " ";
+        }
+    }
+
+    std::cout << "\n";
+    for(int i = 0; i < std::get<1>(afn).size(); i++){
+        for(int j = 0; j<3; ++j){
+            std::cout << i << " " << j << " ";
+            for(auto k: std::get<1>(afn)[i].adjacentes[j]){
+                std::cout << k << " ";
+            }
+            std::cout << "\n";
+        }
+    }
+}
+
+Automata Automata::brzozowski(){
+    auto reverse_ = this->reverse();
+    cout << "PRIMER REVERSE\n";
+    printAfn(reverse_);
+    Automata a = powerset(reverse_);
+    cout << "PRIMER POWERSET\n";
+    std::cout << a;
+    reverse_ = a.reverse();
+    cout << "SEGUNDO REVERSE\n";
+    printAfn(reverse_);
+    a = powerset(reverse_);
+    cout << "SEGUNDO POWERSET\n";
+    std::cout << a;
+    return powerset((powerset(this->reverse())).reverse());
+}
 
 std::istream& operator>>(std::istream& ist, Automata& afd){
     int nStates, firstState, nFinalStates;
@@ -81,107 +156,45 @@ std::ostream& operator<<(std::ostream& ost, Automata &afd){
     return ost;
 }
 
-/*int Automata::get_initialState(){
-    return initialState;
-}
-
-std::vector<state> Automata::get_states(){
-    return states;
-}
-
-std::vector<bool> Automata::get_stateFinal(){
-    return stateFinal;
-}
-
-afn::afn(int initialState, int cantStates, int cantFinals){
-    this->initialState = initialState;
-    states = std::vector<state_afn>(cantStates);
-    stateFinal = std::vector<bool>(cantFinals);
-}
-
-afn::afn(Automata afd){
-    initialState = afd.get_initialState();
-    
-}*/
 
 std::tuple<int,std::vector<state_afn>,std::vector<bool>> Automata::reverse(){
     int newState = states.size();
-    std::cout << newState << '\n';
     std::vector<state_afn> afn(newState+1);                                               // Creamos un afn 
     std::vector<bool> finalstatesAfn(newState+1,false);                                                   // Estado finales del AFN
     //create temp to store the current initital state
     int oldNewstate = initialState;                                                     // Guardamos el valor inicial 
     //create a new initial state
     int new_initial = states.size();
-    // 3 0 1 1
-    // 0 0 1
-    // 0 1 2
-    // 1 0 1
-    // 1 1 0
-    // 2 0 2
-    // 2 1 1
-    // STEP 1
+
+
     // invertimos transiciones
     for(size_t i=0; i<states.size(); i++){                                              // Recorremos cada estado
-        std::cout << "state: " << i << '\n';
         for(size_t j=0; j<2; ++j){                                                      // Recorremos las transiciones de cada estado
-            std::cout << "Transicion: " <<  j <<'\n';
             if(i == states[i].adjacentes[j]){
-                std::cout << '\t' << "Bucle: " << states[i].adjacentes[j] << '\n';
                 afn[i].adjacentes[j].push_back(states[i].adjacentes[j]);
             }
             else{
-                std::cout << '\t' << "A otro estado: " << states[i].adjacentes[j] << '\n';
                 int destinationState = states[i].adjacentes[j];                         // Guardamos el destino
                 afn[destinationState].adjacentes[j].push_back(i);                       // Almacenamos en el destino el valor de salida
             }
         }
     }
-    std::cout << "Finish STEP 1" << '\n';
+
     // STEP 2
     // Agregamos un estado y lo unimos a todos los estados de aceptacion
     for(size_t i = 0; i<stateFinal.size(); i++){
-        std::cout << i << '\n';
         if(stateFinal[i] == true){
-            std::cout << "\t Estado de aceptacion: "<<i << '\n';
             afn[newState].adjacentes[2].push_back(i);
         }
     }
-    std::cout << "Finish STEP 2" <<'\n';
+    
     // STEP 3
     // Convertimos el antiguo estado inicial en estado final 
     finalstatesAfn[oldNewstate] = true;
-    
-    std::cout << afn.size() << '\n';
     return {newState, afn, finalstatesAfn};
 }
 
-void printAfn(std::tuple<int,std::vector<state_afn>,std::vector<bool>> &afn){
-    int numfinalStates = 0;
-    std::cout << std::get<1>(afn).size() << " " << std::get<0>(afn) << " ";
-    for(int i = 0; i< std::get<2>(afn).size(); ++i){
-        if(std::get<2>(afn)[i] == true){
-            numfinalStates++;
-        }
-    }
-    std::cout << numfinalStates << " "; 
-    for(int i = 0; i< std::get<2>(afn).size(); ++i){
-        if(std::get<2>(afn)[i] == true){
-            std::cout << i << " ";
-        }
-    }
 
-    std::cout << "\n";
-    for(int i = 0; i < std::get<1>(afn).size(); i++){
-        for(int j = 0; j<3; ++j){
-            std::cout << i << " " << j << " ";
-            for(auto k: std::get<1>(afn)[i].adjacentes[j]){
-                std::cout << k << " ";
-            }
-            std::cout << "\n";
-        }
-    }
-}
 
 
 std::set<int> clausura(std::set<int> states, std::vector<state_afn>& afn){
@@ -208,8 +221,8 @@ std::set<int> clausura(std::set<int> states, std::vector<state_afn>& afn){
 std::set<int> delta(std::set<int> q, int c, std::vector<state_afn> &afn){
     std::set<int> result_delta;
     auto it = q.begin();
-    while (it != q.end()){                                                      // Recorremos el set
-        for(size_t j=0; j< afn[*it].adjacentes[c].size(); j++){                 // Recoremos para ver a que estados llega desde *it con transiciones c
+    while (it != q.end()){                                                                          // Recorremos el set
+        for(size_t j=0; j< afn[*it].adjacentes[c].size(); j++){                                     // Recorremos para ver a que estados llega desde *it con transiciones c
             result_delta.insert((afn[*it].adjacentes[c])[j]);
         }
         it++;
@@ -250,6 +263,7 @@ Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bo
         transitions.insert(std::pair<std::set<int>,std::tuple<std::set<int>,std::set<int>>> (q,trans));
     }
 
+    // Parseamos el afn 
     Automata afdResult;
     afdResult.initialState = 0;
     afdResult.states = std::vector<state>(Q.size());
@@ -274,42 +288,3 @@ Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bo
 
     return afdResult;
 }
-
-
-
-
-
-// 4 3 1 0
-// 0 0
-// 0 1 1 
-// 0 2
-// 1 0 0 1
-// 1 1 2
-// 1 2
-// 2 0 2
-// 2 1 0
-// 2 2
-// 3 0
-// 3 1
-// 3 2 1
-
-
-// 6 5 1 0
-// 5 2 0 2 4
-// 5 0
-// 5 1
-// 4 0 4
-// 4 1 4 2
-// 4 2
-// 2 0 2 3 1
-// 2 1
-// 2 2
-// 3 0
-// 3 1 3 1
-// 3 2
-// 1 0
-// 1 1 0
-// 1 2
-// 0 0 0
-// 0 1
-// 0 2
