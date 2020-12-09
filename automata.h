@@ -17,6 +17,7 @@ class Automata{
         friend std::ostream& operator<<(std::ostream& ost, Automata &afd);
         std::vector<std::vector<bool>> equivalenceAlgorithm();
         Automata brzozowski();
+        Automata huffman_moore();
 };
 
 std::vector<std::vector<bool>> Automata::equivalenceAlgorithm(){
@@ -58,6 +59,22 @@ std::vector<std::vector<bool>> Automata::equivalenceAlgorithm(){
     }
     return marked;
 }
+Automata Automata::huffman_moore(){
+    Automata automata;
+    
+    // Paso 1
+    // Armamos la tabla de estados distinguibles
+    vector<vector<bool>> tableDistinct = this->equivalenceAlgorithm();
+
+    // Paso 2
+    // Particion de estados
+    vector<set<int>> states;
+    for(int i = 1; i < tableDistinct.size(); i++){
+        for(int j = 0; j < i; j++){
+            
+        }
+    }
+}
 
 void printAfn(std::tuple<int,std::vector<state_afn>,std::vector<bool>> &afn){
     int numfinalStates = 0;
@@ -97,7 +114,7 @@ Automata Automata::brzozowski(){
     // cout << "SEGUNDO REVERSE\n";
     // printAfn(reverse_);
     // a = powerset(reverse_);
-    // cout << "SEGUNDO POWERSET\n";
+    // cout << "SEGUNDO POWERSET Y RESULTADO\n";
     // std::cout << a;
     return powerset((powerset(this->reverse())).reverse());
 }
@@ -220,7 +237,6 @@ Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bo
     std::set<int> initialState;
     initialState.insert(std::get<0>(afn));                                                          // Estado inicial
     std::set<int> q_0 = clausura(initialState,std::get<1>(afn));
-    
     std::vector<std::set<int>> Q;                                                                   // Vector de estados
     Q.push_back(q_0);
     
@@ -233,7 +249,7 @@ Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bo
         std::set<int> q = workList.front();
         workList.pop();
         bool flagNull = false;
-        std::tuple<std::set<int>,std::set<int>> trans;
+        std::tuple< std::set<int>,std::set<int>> trans;
         for(int i = 0; i<2; i++){
             std::set<int> t = clausura(delta(q,i,std::get<1>(afn)),std::get<1>(afn));
             
@@ -251,7 +267,6 @@ Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bo
             }
         } 
         if(!flagNull) transitions[q] = trans;
-        //transitions.insert(std::pair<std::set<int>,std::tuple<std::set<int>,std::set<int>>> (q,trans));
     }
 
     // Parseamos el afn 
