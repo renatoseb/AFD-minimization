@@ -59,6 +59,7 @@ std::vector<std::vector<bool>> Automata::equivalenceAlgorithm(){
     }
     return marked;
 }
+
 Automata Automata::huffman_moore(){
     Automata automata;
     
@@ -104,18 +105,6 @@ void printAfn(std::tuple<int,std::vector<state_afn>,std::vector<bool>> &afn){
 }
 
 Automata Automata::brzozowski(){
-    // auto reverse_ = this->reverse();
-    // cout << "PRIMER REVERSE\n";
-    // printAfn(reverse_);
-    // Automata a = powerset(reverse_);
-    // cout << "PRIMER POWERSET\n";
-    // std::cout << a;
-    // reverse_ = a.reverse();
-    // cout << "SEGUNDO REVERSE\n";
-    // printAfn(reverse_);
-    // a = powerset(reverse_);
-    // cout << "SEGUNDO POWERSET Y RESULTADO\n";
-    // std::cout << a;
     return powerset((powerset(this->reverse())).reverse());
 }
 
