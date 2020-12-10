@@ -18,7 +18,72 @@ class Automata{
         std::vector<std::vector<bool>> equivalenceAlgorithm();
         Automata brzozowski();
         Automata huffman_moore();
+        vector<std::vector<bool>> secondPart();
 };
+
+vector<std::vector<bool>> Automata::secondPart(){
+    int nStates = (int)states.size();
+    std::vector<std::vector<bool>> marked(nStates,std::vector<bool>(nStates));
+    queue<pair<int,int>> q;
+    for(int i = 0; i < nStates;i++){
+        for(int j = 0; j < nStates;j++){
+            marked[i][j] = false;
+        }
+    }
+    // mark pairs Qi ∈ F and Qj ∉ F
+    for(int i = 0; i < nStates; i++){
+        if(stateFinal[i]){
+            for(int j = 0; j < nStates;j++){
+                if(i == j) continue;
+                if(!stateFinal[j]){
+                    marked[i][j] = 1;
+                    marked[j][i] = 1;
+                }
+            }
+        }else{
+            for(int j = 0; j < i;j++){
+                if(i == j) continue;
+                if(!stateFinal[j]){
+                    q.push({i,j});
+                }
+            }
+        }
+    }
+    while(!q.empty()){
+        vector<pair<int,int>> vec;
+        pair<int,int> fState = q.front();
+        q.pop();
+        vec.push_back(fState);
+        bool flag = false;
+        while(!marked[fState.first][fState.second]){
+            int changes = 0;
+            for(int i = 0; i < 2; i++){
+                if(states[fState.first].adjacentes[i] == states[fState.second].adjacentes[i]) continue;
+                if(!marked[states[fState.first].adjacentes[i]][states[fState.second].adjacentes[i]] && !marked[fState.first][fState.second]){
+                    fState = make_pair(states[fState.first].adjacentes[i], states[fState.second].adjacentes[i]);
+                    vec.push_back(fState);
+                    changes++;
+                }else{
+                    flag = true;
+                    vec.push_back(fState);
+                    changes = 0;
+                    break;
+                }
+            }
+            if(!changes){
+                break;
+            }
+        }
+        if(flag){
+            for(int i = 0; i < vec.size();i++){
+                marked[vec[i].first][vec[i].second] = 1;
+                marked[vec[i].second][vec[i].first] = 1;
+            }
+        }
+    }
+    return marked;
+}
+
 
 std::vector<std::vector<bool>> Automata::equivalenceAlgorithm(){
     int nStates = states.size();
@@ -75,6 +140,7 @@ Automata Automata::huffman_moore(){
         }
     }
 }
+
 
 void printAfn(std::tuple<int,std::vector<state_afn>,std::vector<bool>> &afn){
     int numfinalStates = 0;
