@@ -3,27 +3,227 @@
 #include "state.h"
 using namespace std;
 
-
 class Automata{
     int initialState;
-    std::vector<state> states;
-    std::vector<bool> stateFinal;
+    vector<state> states;
+    vector<bool> stateFinal;
 
-    std::tuple<int,std::vector<state_afn>,std::vector<bool>> reverse();
-    Automata powerset(std::tuple<int,std::vector<state_afn>,std::vector<bool>> afn);
+    tuple<int,vector<state_afn>,vector<bool>> reverse();
+    Automata powerset(tuple<int,vector<state_afn>,vector<bool>> afn);
 
     public:
-        friend std::istream& operator>>(std::istream& ist, Automata& afd);
-        friend std::ostream& operator<<(std::ostream& ost, Automata &afd);
-        std::vector<std::vector<bool>> equivalenceAlgorithm();
+        
+        // Problema 1
         Automata brzozowski();
+
+        // Problema 2
+        vector<vector<bool>> equivalenceAlgorithm();
+
+        // Problema 3
+        vector<vector<bool>> secondPart();
+
+        // Problema 4
         Automata huffman_moore();
-        vector<std::vector<bool>> secondPart();
+        
+        // Problema 5
+        Automata Automata::hopcroft();
+
+        friend istream& operator>>(istream& ist, Automata& afd);
+        friend ostream& operator<<(ostream& ost, Automata &afd);
 };
 
-vector<std::vector<bool>> Automata::secondPart(){
+
+//
+// Problema 1
+//
+Automata Automata::brzozowski(){
+    return powerset((powerset(this->reverse())).reverse());
+}
+
+tuple<int,vector<state_afn>,vector<bool>> Automata::reverse(){
+    //create a new initial state
+    int newState = states.size();
+    vector<state_afn> afn(newState+1);                                             // Creamos un afn 
+    vector<bool> finalstatesAfn(newState+1,false);                                 // Estado finales del AFN
+    //create temp to store the current initital state
+    int oldNewstate = initialState;                                                     // Guardamos el valor inicial 
+
+    // STEP 1 
+    // invertimos transiciones
+    for(size_t i=0; i<states.size(); i++){                                              // Recorremos cada estado
+        for(size_t j=0; j<2; ++j){                                                      // Recorremos las transiciones de cada estado
+            if(i == states[i].adjacentes[j]){
+                afn[i].adjacentes[j].push_back(states[i].adjacentes[j]);
+            }
+            else{
+                int destinationState = states[i].adjacentes[j];                         // Guardamos el destino
+                afn[destinationState].adjacentes[j].push_back(i);                       // Almacenamos en el destino el valor de salida
+            }
+        }
+    }
+
+    // STEP 2
+    // Agregamos un estado y lo unimos a todos los estados de aceptacion
+    for(size_t i = 0; i<stateFinal.size(); i++){
+        if(stateFinal[i] == true){
+            afn[newState].adjacentes[2].push_back(i);
+        }
+    }
+    
+    // STEP 3
+    // Convertimos el antiguo estado inicial en estado final 
+    finalstatesAfn[oldNewstate] = true;
+    return {newState, afn, finalstatesAfn};
+}
+
+
+
+
+set<int> clausura(set<int> states, vector<state_afn>& afn){
+    queue<int> q;
+    set<int> clausuraResult;
+    for(auto it=states.begin(); it!=states.end(); ++it){
+        q.push(*it);
+        clausuraResult.insert(*it);
+        while(!q.empty()){
+            int currState = q.front();
+            q.pop();
+            for(size_t j=0; j<afn[currState].adjacentes[2].size(); j++){
+                auto temp = (afn[currState].adjacentes[2])[j];
+                if(clausuraResult.find(temp) == clausuraResult.end()){
+                    clausuraResult.insert(temp);
+                    q.push(temp);
+                }
+            }
+        }
+    }
+    return clausuraResult;
+}
+
+set<int> delta(set<int> q, int c, vector<state_afn> &afn){
+    set<int> result_delta;
+    auto it = q.begin();
+    while (it != q.end()){                                                                          // Recorremos el set
+        for(size_t j=0; j< afn[*it].adjacentes[c].size(); j++){                                     // Recorremos para ver a que estados llega desde *it con transiciones c
+            result_delta.insert((afn[*it].adjacentes[c])[j]);
+        }
+        it++;
+    }
+    return result_delta;
+}
+
+Automata Automata::powerset(tuple<int,vector<state_afn>,vector<bool>> afn){
+    set<int> initialState;
+    initialState.insert(get<0>(afn));                                                          // Estado inicial
+    set<int> q_0 = clausura(initialState,get<1>(afn));
+    vector<set<int>> Q;                                                                   // Vector de estados
+    Q.push_back(q_0);
+    
+    map<set<int>,tuple<set<int>,set<int>>> transitions;                    // Mapa de transiciones
+    
+    queue<set<int>> workList;                                                             // Vector de control de estados
+    workList.push(q_0);
+
+    while(!workList.empty()){
+        set<int> q = workList.front();
+        workList.pop();
+        bool flagNull = false;
+        tuple< set<int>,set<int>> trans;
+        for(int i = 0; i<2; i++){
+            set<int> t = clausura(delta(q,i,get<1>(afn)),get<1>(afn));
+            
+            if(t.size() == 0){
+                flagNull = true;
+                continue;
+            }
+            if(i == 0) get<0>(trans) = t;
+            else get<1>(trans) = t;
+            
+            auto it = find(Q.begin(),Q.end(),t);
+            if(it == Q.end()){
+                Q.push_back(t);
+                workList.push(t);
+            }
+        } 
+        if(!flagNull) transitions[q] = trans;
+    }
+
+    // Parseamos el afn 
+    Automata afdResult;
+    afdResult.initialState = 0;
+    afdResult.states = vector<state>(Q.size());
+    afdResult.stateFinal = vector<bool>(Q.size(),false);
+    for(size_t i = 0; i<Q.size(); ++i){
+        tuple<set<int>,set<int>> trans = transitions[Q[i]];
+        auto transZero = find(Q.begin(),Q.end(),  get<0>(trans));
+        auto transOne = find(Q.begin(),Q.end(),  get<1>(trans));
+        afdResult.states[i].adjacentes[0] = transZero - Q.begin();
+        afdResult.states[i].adjacentes[1] = transOne - Q.begin();
+
+        // Pasamos los valores finales
+        for(size_t j = 0; j<get<2>(afn).size(); ++j){
+            if(get<2>(afn)[j] == true){
+                auto itFinal = find(Q[i].begin(),Q[i].end(), j);
+                if(itFinal != Q[i].end()){
+                    afdResult.stateFinal[i] = true;
+                }
+            }
+        }
+    }
+
+    return afdResult;
+}
+
+// 
+// Problema 2
+//
+vector<vector<bool>> Automata::equivalenceAlgorithm(){
+    int nStates = states.size();
+    vector<vector<bool>> marked(nStates,vector<bool>(nStates));
+    for(int i = 0; i < nStates;i++){
+        for(int j = 0; j < nStates;j++){
+            marked[i][j] = false;
+        }
+    }
+    // mark pairs Qi ∈ F and Qj ∉ F
+    for(int i = 0; i < nStates; i++){
+        if(stateFinal[i]){
+            for(int j = 0; j < nStates;j++){
+                if(i == j) continue;
+                if(!stateFinal[j]){
+                    marked[i][j] = 1;
+                    marked[j][i] = 1;
+                }
+            }
+        }
+    }
+    
+    int changes = 1;
+    while(changes != 0){
+        changes = 0;
+        for(int i = 0; i < nStates; i++){
+            for(int j = 0; j < nStates; j++){
+                if(i == j) continue;
+                for(int k = 0; k < 2; k++){
+                    if(marked[states[i].adjacentes[k]][states[j].adjacentes[k]] && (!marked[i][j] && !marked[j][i])){
+                        marked[i][j] = 1;
+                        marked[j][i] = 1;
+                        changes++;
+                    }
+                }
+            }
+        }
+    }
+    return marked;
+}
+
+
+//
+// Problema 3
+//
+vector<vector<bool>> Automata::secondPart(){
     int nStates = (int)states.size();
-    std::vector<std::vector<bool>> marked(nStates,std::vector<bool>(nStates));
+    vector<vector<bool>> marked(nStates,vector<bool>(nStates));
     queue<pair<int,int>> q;
     for(int i = 0; i < nStates;i++){
         for(int j = 0; j < nStates;j++){
@@ -85,46 +285,7 @@ vector<std::vector<bool>> Automata::secondPart(){
 }
 
 
-std::vector<std::vector<bool>> Automata::equivalenceAlgorithm(){
-    int nStates = states.size();
-    std::vector<std::vector<bool>> marked(nStates,std::vector<bool>(nStates));
-    for(int i = 0; i < nStates;i++){
-        for(int j = 0; j < nStates;j++){
-            marked[i][j] = false;
-        }
-    }
-    // mark pairs Qi ∈ F and Qj ∉ F
-    for(int i = 0; i < nStates; i++){
-        if(stateFinal[i]){
-            for(int j = 0; j < nStates;j++){
-                if(i == j) continue;
-                if(!stateFinal[j]){
-                    marked[i][j] = 1;
-                    marked[j][i] = 1;
-                }
-            }
-        }
-    }
-    
-    int changes = 1;
-    while(changes != 0){
-        changes = 0;
-        for(int i = 0; i < nStates; i++){
-            for(int j = 0; j < nStates; j++){
-                if(i == j) continue;
-                for(int k = 0; k < 2; k++){
-                    if(marked[states[i].adjacentes[k]][states[j].adjacentes[k]] && (!marked[i][j] && !marked[j][i])){
-                        marked[i][j] = 1;
-                        marked[j][i] = 1;
-                        changes++;
-                    }
-                }
-            }
-        }
-    }
-    return marked;
-}
-
+// Problema 4
 Automata Automata::huffman_moore(){
     Automata automata;
     
@@ -143,43 +304,51 @@ Automata Automata::huffman_moore(){
 }
 
 
-void printAfn(std::tuple<int,std::vector<state_afn>,std::vector<bool>> &afn){
+//
+// Problema 5
+//
+Automata Automata::hopcroft(){
+    
+}
+
+//
+// ADICIONALES
+//
+void printAfn(tuple<int,vector<state_afn>,vector<bool>> &afn){
     int numfinalStates = 0;
-    std::cout << std::get<1>(afn).size() << " " << std::get<0>(afn) << " ";
-    for(int i = 0; i< std::get<2>(afn).size(); ++i){
-        if(std::get<2>(afn)[i] == true){
+    cout << get<1>(afn).size() << " " << get<0>(afn) << " ";
+    for(int i = 0; i< get<2>(afn).size(); ++i){
+        if(get<2>(afn)[i] == true){
             numfinalStates++;
         }
     }
-    std::cout << numfinalStates << " "; 
-    for(int i = 0; i< std::get<2>(afn).size(); ++i){
-        if(std::get<2>(afn)[i] == true){
-            std::cout << i << " ";
+    cout << numfinalStates << " "; 
+    for(int i = 0; i< get<2>(afn).size(); ++i){
+        if(get<2>(afn)[i] == true){
+            cout << i << " ";
         }
     }
 
-    std::cout << "\n";
-    for(int i = 0; i < std::get<1>(afn).size(); i++){
+    cout << "\n";
+    for(int i = 0; i < get<1>(afn).size(); i++){
         for(int j = 0; j<3; ++j){
-            std::cout << i << " " << j << " ";
-            for(auto k: std::get<1>(afn)[i].adjacentes[j]){
-                std::cout << k << " ";
+            cout << i << " " << j << " ";
+            for(auto k: get<1>(afn)[i].adjacentes[j]){
+                cout << k << " ";
             }
-            std::cout << "\n";
+            cout << "\n";
         }
     }
 }
 
-Automata Automata::brzozowski(){
-    return powerset((powerset(this->reverse())).reverse());
-}
 
-std::istream& operator>>(std::istream& ist, Automata& afd){
+
+istream& operator>>(istream& ist, Automata& afd){
     int nStates, firstState, nFinalStates;
     ist >> nStates >> firstState >> nFinalStates;
     afd.initialState = firstState;
-    afd.states = std::vector<state>(nStates);
-    afd.stateFinal = std::vector<bool>(nStates,false);
+    afd.states = vector<state>(nStates);
+    afd.stateFinal = vector<bool>(nStates,false);
     for(int i = 0; i < nFinalStates; i++){
         int sf;
         ist >> sf;
@@ -194,10 +363,10 @@ std::istream& operator>>(std::istream& ist, Automata& afd){
     return ist;
 }
 
-std::ostream& operator<<(std::ostream& ost, Automata &afd){
+ostream& operator<<(ostream& ost, Automata &afd){
     ost <<'\n';
     int numStateFinal = 0;
-    std::vector<int> sf;
+    vector<int> sf;
     for(int i = 0; i < afd.stateFinal.size(); i++){
         if(afd.stateFinal[i]){
             numStateFinal++;
@@ -216,136 +385,3 @@ std::ostream& operator<<(std::ostream& ost, Automata &afd){
 }
 
 
-std::tuple<int,std::vector<state_afn>,std::vector<bool>> Automata::reverse(){
-    //create a new initial state
-    int newState = states.size();
-    std::vector<state_afn> afn(newState+1);                                             // Creamos un afn 
-    std::vector<bool> finalstatesAfn(newState+1,false);                                 // Estado finales del AFN
-    //create temp to store the current initital state
-    int oldNewstate = initialState;                                                     // Guardamos el valor inicial 
-
-    // STEP 1 
-    // invertimos transiciones
-    for(size_t i=0; i<states.size(); i++){                                              // Recorremos cada estado
-        for(size_t j=0; j<2; ++j){                                                      // Recorremos las transiciones de cada estado
-            if(i == states[i].adjacentes[j]){
-                afn[i].adjacentes[j].push_back(states[i].adjacentes[j]);
-            }
-            else{
-                int destinationState = states[i].adjacentes[j];                         // Guardamos el destino
-                afn[destinationState].adjacentes[j].push_back(i);                       // Almacenamos en el destino el valor de salida
-            }
-        }
-    }
-
-    // STEP 2
-    // Agregamos un estado y lo unimos a todos los estados de aceptacion
-    for(size_t i = 0; i<stateFinal.size(); i++){
-        if(stateFinal[i] == true){
-            afn[newState].adjacentes[2].push_back(i);
-        }
-    }
-    
-    // STEP 3
-    // Convertimos el antiguo estado inicial en estado final 
-    finalstatesAfn[oldNewstate] = true;
-    return {newState, afn, finalstatesAfn};
-}
-
-
-
-
-std::set<int> clausura(std::set<int> states, std::vector<state_afn>& afn){
-    std::queue<int> q;
-    std::set<int> clausuraResult;
-    for(auto it=states.begin(); it!=states.end(); ++it){
-        q.push(*it);
-        clausuraResult.insert(*it);
-        while(!q.empty()){
-            int currState = q.front();
-            q.pop();
-            for(size_t j=0; j<afn[currState].adjacentes[2].size(); j++){
-                auto temp = (afn[currState].adjacentes[2])[j];
-                if(clausuraResult.find(temp) == clausuraResult.end()){
-                    clausuraResult.insert(temp);
-                    q.push(temp);
-                }
-            }
-        }
-    }
-    return clausuraResult;
-}
-
-std::set<int> delta(std::set<int> q, int c, std::vector<state_afn> &afn){
-    std::set<int> result_delta;
-    auto it = q.begin();
-    while (it != q.end()){                                                                          // Recorremos el set
-        for(size_t j=0; j< afn[*it].adjacentes[c].size(); j++){                                     // Recorremos para ver a que estados llega desde *it con transiciones c
-            result_delta.insert((afn[*it].adjacentes[c])[j]);
-        }
-        it++;
-    }
-    return result_delta;
-}
-
-Automata Automata::powerset(std::tuple<int,std::vector<state_afn>,std::vector<bool>> afn){
-    std::set<int> initialState;
-    initialState.insert(std::get<0>(afn));                                                          // Estado inicial
-    std::set<int> q_0 = clausura(initialState,std::get<1>(afn));
-    std::vector<std::set<int>> Q;                                                                   // Vector de estados
-    Q.push_back(q_0);
-    
-    std::map<std::set<int>,std::tuple<std::set<int>,std::set<int>>> transitions;                    // Mapa de transiciones
-    
-    std::queue<std::set<int>> workList;                                                             // Vector de control de estados
-    workList.push(q_0);
-
-    while(!workList.empty()){
-        std::set<int> q = workList.front();
-        workList.pop();
-        bool flagNull = false;
-        std::tuple< std::set<int>,std::set<int>> trans;
-        for(int i = 0; i<2; i++){
-            std::set<int> t = clausura(delta(q,i,std::get<1>(afn)),std::get<1>(afn));
-            
-            if(t.size() == 0){
-                flagNull = true;
-                continue;
-            }
-            if(i == 0) std::get<0>(trans) = t;
-            else std::get<1>(trans) = t;
-            
-            auto it = std::find(Q.begin(),Q.end(),t);
-            if(it == Q.end()){
-                Q.push_back(t);
-                workList.push(t);
-            }
-        } 
-        if(!flagNull) transitions[q] = trans;
-    }
-
-    // Parseamos el afn 
-    Automata afdResult;
-    afdResult.initialState = 0;
-    afdResult.states = std::vector<state>(Q.size());
-    afdResult.stateFinal = std::vector<bool>(Q.size(),false);
-    for(size_t i = 0; i<Q.size(); ++i){
-        std::tuple<std::set<int>,std::set<int>> trans = transitions[Q[i]];
-        auto transZero = std::find(Q.begin(),Q.end(),  std::get<0>(trans));
-        auto transOne = std::find(Q.begin(),Q.end(),  std::get<1>(trans));
-        afdResult.states[i].adjacentes[0] = transZero - Q.begin();
-        afdResult.states[i].adjacentes[1] = transOne - Q.begin();
-
-        // Pasamos los valores finales
-        for(size_t j = 0; j<std::get<2>(afn).size(); ++j){
-            if(std::get<2>(afn)[j] == true){
-                auto itFinal = std::find(Q[i].begin(),Q[i].end(), j);
-                if(itFinal != Q[i].end()){
-                    afdResult.stateFinal[i] = true;
-                }
-            }
-        }
-    }
-
-    return afdResult;
-}
