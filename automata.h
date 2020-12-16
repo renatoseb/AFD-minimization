@@ -28,8 +28,12 @@ class Automata{
         // Problema 5
         Automata Automata::hopcroft();
 
+        // Adicionales
         friend istream& operator>>(istream& ist, Automata& afd);
         friend ostream& operator<<(ostream& ost, Automata &afd);
+        int getSize(){
+            return this->states.size();
+        }
 };
 
 
@@ -309,6 +313,23 @@ Automata Automata::huffman_moore(){
 //
 Automata Automata::hopcroft(){
     
+    // Creamos los conjuntos P y W
+    set<set<state>> P;
+    set<set<state>> W;
+
+    set<state> notFinals;
+    set<state> Finals;
+    for(int i = 0; i < this->getSize(); i++){
+        if(this->stateFinal[i] == true) Finals.insert(this->states[i]);
+        else notFinals.insert(this->states[i]);
+    }
+    P.insert(Finals);
+    P.insert(notFinals);
+    W.insert(Finals);
+    W.insert(notFinals);
+
+    
+
 }
 
 //
