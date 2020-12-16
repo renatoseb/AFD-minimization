@@ -328,7 +328,7 @@ Automata Automata::hopcroft(){
     W.insert(Finals);
     W.insert(notFinals);
 
-    
+    while
 
 }
 
