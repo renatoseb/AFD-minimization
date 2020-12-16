@@ -34,6 +34,8 @@ class Automata{
         int getSize(){
             return this->states.size();
         }
+        private:
+        vector<state_afn> Automata::reverse_2();
 };
 
 
@@ -68,7 +70,7 @@ tuple<int,vector<state_afn>,vector<bool>> Automata::reverse(){
 
     // STEP 2
     // Agregamos un estado y lo unimos a todos los estados de aceptacion
-    for(size_t i = 0; i<stateFinal.size(); i++){
+    for(size_t i = 0; i < stateFinal.size(); i++){
         if(stateFinal[i] == true){
             afn[newState].adjacentes[2].push_back(i);
         }
@@ -225,16 +227,32 @@ vector<vector<bool>> Automata::equivalenceAlgorithm(){
 //
 // Problema 3
 //
+vector<state_afn> Automata::reverse_2(){
+    vector<state_afn> afn(states.size());                                             // Creamos un afn
+
+    for(int i=0; i < states.size(); i++){                                              // Recorremos cada estado
+        for(int j=0; j < 2; ++j){                                                      // Recorremos las transiciones de cada estado
+            if(i == states[i].adjacentes[j]){
+                afn[i].adjacentes[j].push_back(states[i].adjacentes[j]);
+            }
+            else{
+                int destinationState = states[i].adjacentes[j];                         // Guardamos el destino
+                afn[destinationState].adjacentes[j].push_back(i);                       // Almacenamos en el destino el valor de salida
+            }
+        }
+    }
+    return afn;
+}
+
 vector<vector<bool>> Automata::secondPart(){
     int nStates = (int)states.size();
-    vector<vector<bool>> marked(nStates,vector<bool>(nStates));
+    std::vector<std::vector<bool>> marked(nStates,std::vector<bool>(nStates));
     queue<pair<int,int>> q;
     for(int i = 0; i < nStates;i++){
         for(int j = 0; j < nStates;j++){
             marked[i][j] = false;
         }
     }
-    // mark pairs Qi ∈ F and Qj ∉ F
     for(int i = 0; i < nStates; i++){
         if(stateFinal[i]){
             for(int j = 0; j < nStates;j++){
@@ -242,49 +260,38 @@ vector<vector<bool>> Automata::secondPart(){
                 if(!stateFinal[j]){
                     marked[i][j] = 1;
                     marked[j][i] = 1;
-                }
-            }
-        }else{
-            for(int j = 0; j < i;j++){
-                if(i == j) continue;
-                if(!stateFinal[j]){
                     q.push({i,j});
                 }
             }
         }
     }
+    set<pair<int,int>> s;
+    vector<state_afn> afn = reverse_2();
+    
     while(!q.empty()){
-        vector<pair<int,int>> vec;
-        pair<int,int> fState = q.front();
+        //cout << q.size() << ' ';
+        pair<int,int> e = q.front();
         q.pop();
-        vec.push_back(fState);
-        bool flag = false;
-        while(!marked[fState.first][fState.second]){
-            int changes = 0;
-            for(int i = 0; i < 2; i++){
-                if(states[fState.first].adjacentes[i] == states[fState.second].adjacentes[i]) continue;
-                if(!marked[states[fState.first].adjacentes[i]][states[fState.second].adjacentes[i]] && !marked[fState.first][fState.second]){
-                    fState = make_pair(states[fState.first].adjacentes[i], states[fState.second].adjacentes[i]);
-                    vec.push_back(fState);
-                    changes++;
-                }else{
-                    flag = true;
-                    vec.push_back(fState);
-                    changes = 0;
-                    break;
+        for(int i = 0; i < 2; i++){
+            vector<int> adjA = afn[e.first].adjacentes[i];
+            vector<int> adjB = afn[e.second].adjacentes[i];
+            if(adjA.size() == 0 || adjB.size() == 0) continue;
+            else{
+                for(int a : adjA){
+                    for(int b : adjB){
+                        if(a == b || marked[a][b] || marked[b][a]) continue;
+                        if(s.find({a,b}) == s.end() && s.find({b,a}) == s.end()){
+                            s.insert({a,b});
+                            q.push({a,b});
+                            marked[a][b] = 1;
+                            marked[b][a] = 1;
+                        }
+                    }
                 }
-            }
-            if(!changes){
-                break;
-            }
-        }
-        if(flag){
-            for(int i = 0; i < vec.size();i++){
-                marked[vec[i].first][vec[i].second] = 1;
-                marked[vec[i].second][vec[i].first] = 1;
             }
         }
     }
+    cout << endl;
     return marked;
 }
 
