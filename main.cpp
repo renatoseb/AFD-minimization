@@ -15,17 +15,18 @@ int main(){
     // b = a.brzozowski();
     // std::cout << b;
 
-    cout << "PROBLEMA 2\n";
+    // cout << "PROBLEMA 2\n";
     cin >> a;
     cout << "\n";
-    auto matriz = a.equivalenceAlgorithm();
-    for(int i = 1; i < matriz.size(); i++){
-        for(int j = 0; j < i; j++){
-            cout<< matriz[i][j] << " ";
-        }
-        cout <<'\n';
+    a.hopcroft();
+    // auto matriz = a.equivalenceAlgorithm();
+    // for(int i = 1; i < matriz.size(); i++){
+    //     for(int j = 0; j < i; j++){
+    //         cout<< matriz[i][j] << " ";
+    //     }
+    //     cout <<'\n';
 
-    }  
-    cout <<'\n';
+    // }  
+    // cout <<'\n';
     return 0;
 }

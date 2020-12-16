@@ -26,11 +26,12 @@ class Automata{
         Automata huffman_moore();
         
         // Problema 5
-        Automata Automata::hopcroft();
+        void hopcroft();
 
         // Adicionales
         friend istream& operator>>(istream& ist, Automata& afd);
         friend ostream& operator<<(ostream& ost, Automata &afd);
+        set<int> can_reach(set<int> A, int c);
         int getSize(){
             return this->states.size();
         }
@@ -221,74 +222,9 @@ vector<vector<bool>> Automata::equivalenceAlgorithm(){
     return marked;
 }
 
-
 //
 // Problema 3
 //
-vector<vector<bool>> Automata::secondPart(){
-    int nStates = (int)states.size();
-    vector<vector<bool>> marked(nStates,vector<bool>(nStates));
-    queue<pair<int,int>> q;
-    for(int i = 0; i < nStates;i++){
-        for(int j = 0; j < nStates;j++){
-            marked[i][j] = false;
-        }
-    }
-    // mark pairs Qi ∈ F and Qj ∉ F
-    for(int i = 0; i < nStates; i++){
-        if(stateFinal[i]){
-            for(int j = 0; j < nStates;j++){
-                if(i == j) continue;
-                if(!stateFinal[j]){
-                    marked[i][j] = 1;
-                    marked[j][i] = 1;
-                }
-            }
-        }else{
-            for(int j = 0; j < i;j++){
-                if(i == j) continue;
-                if(!stateFinal[j]){
-                    q.push({i,j});
-                }
-            }
-        }
-    }
-    while(!q.empty()){
-        vector<pair<int,int>> vec;
-        pair<int,int> fState = q.front();
-        q.pop();
-        vec.push_back(fState);
-        bool flag = false;
-        while(!marked[fState.first][fState.second]){
-            int changes = 0;
-            for(int i = 0; i < 2; i++){
-                if(states[fState.first].adjacentes[i] == states[fState.second].adjacentes[i]) continue;
-                if(!marked[states[fState.first].adjacentes[i]][states[fState.second].adjacentes[i]] && !marked[fState.first][fState.second]){
-                    fState = make_pair(states[fState.first].adjacentes[i], states[fState.second].adjacentes[i]);
-                    vec.push_back(fState);
-                    changes++;
-                }else{
-                    flag = true;
-                    vec.push_back(fState);
-                    changes = 0;
-                    break;
-                }
-            }
-            if(!changes){
-                break;
-            }
-        }
-        if(flag){
-            for(int i = 0; i < vec.size();i++){
-                marked[vec[i].first][vec[i].second] = 1;
-                marked[vec[i].second][vec[i].first] = 1;
-            }
-        }
-    }
-    return marked;
-}
-
-// Problema 3
 vector<std::vector<bool>> Automata::secondPart(){
     int nStates = (int)states.size();
     std::vector<std::vector<bool>> marked(nStates,std::vector<bool>(nStates));
@@ -374,25 +310,115 @@ Automata Automata::huffman_moore(){
 //
 // Problema 5
 //
-Automata Automata::hopcroft(){
+vector<state_afn> reverseAfd(vector<state> afd){
+    vector<state_afn> reverse(afd.size());
+
+    // invertimos transiciones
+    for(size_t i=0; i<afd.size(); i++){                                              // Recorremos cada estado
+        for(size_t j=0; j<2; ++j){                                                   // Recorremos las transiciones de cada estado
+            if(i == afd[i].adjacentes[j]){
+                reverse[i].adjacentes[j].push_back(i);
+            }
+            else{
+                int destinationState = afd[i].adjacentes[j];                         // Guardamos el destino
+                reverse[destinationState].adjacentes[j].push_back(i);
+            }
+        }
+    }
+    return reverse;
+}
+
+set<int> difference(set<int> A, set<int> B){
+    set<int> C;
+    set_difference(A.begin(),A.end(), B.begin(),B.end(), inserter(C,C.begin()));
+    return C;
+}
+
+set<int> intersection(set<int> A, set<int> B){
+    set<int> C;
+    set_intersection(A.begin(),A.end(), B.begin(),B.end(), inserter(C,C.begin()));
+    return C;
+}
+
+
+void Automata::hopcroft(){
     
     // Creamos los conjuntos P y W
-    set<set<state>> P;
-    set<set<state>> W;
+    set<set<int>> P;
+    set<set<int>> W;
 
-    set<state> notFinals;
-    set<state> Finals;
+    set<int> notFinals;
+    set<int> Finals;
+
+    // Primera particion
+    // Partimos los estados de aceptacion de los no aceptacion
     for(int i = 0; i < this->getSize(); i++){
-        if(this->stateFinal[i] == true) Finals.insert(this->states[i]);
-        else notFinals.insert(this->states[i]);
+        if(this->stateFinal[i] == true) Finals.insert(i);
+        else notFinals.insert(i);
     }
     P.insert(Finals);
     P.insert(notFinals);
     W.insert(Finals);
     W.insert(notFinals);
 
-    while
+    while(!W.empty()){
+        // Escogemos y eliminamos un conjunto de W
+        // y lo guardamos en A
+        set<int> A = *(W.begin());
+        cout << "Hola\n";
+        W.erase(W.begin());
+        for(int c = 0; c < 2; c++){
 
+            // Creamos el conjunto X
+            // X: Conjunto de estados que llegan a algun estado de A
+            //    con transicion c.
+            set<int> X = this->can_reach(A, c);
+            for(auto Y = P.begin(); Y!=P.end(); Y++){
+                set<int> Intersect = intersection(X,*Y);
+                set<int> Difference = difference(*Y,X);
+                if(!Intersect.empty() && !Difference.empty()){
+                    W.erase(*Y);
+                    W.insert(Intersect);
+                    W.insert(Difference);
+                }
+                else{
+                    if(Intersect.size() <= Difference.size()){
+                        W.insert(Intersect);
+                    }
+                    else{
+                        W.insert(Difference);
+                    }
+                    
+                }
+            }
+        }
+    }
+    cout << endl;
+    for(auto it=W.begin(); it!=W.end(); it++){
+        for(auto it1=(it)->begin(); it1!=(it)->end(); it1++){
+            cout << *it1 << " ";
+        }
+        cout << endl;
+    }
+
+}
+
+
+
+
+set<int> Automata::can_reach(set<int> A, int c){
+    set<int> X;
+    vector<state_afn> reverse = reverseAfd(states);
+    for(auto it = A.begin(); it != A.end(); it++){
+        for(int transition = 0; transition < 2; transition++){
+            vector<int> reachableStates = reverse[*it].adjacentes[transition];
+            for(auto &i: reachableStates){
+                X.insert(i);
+            }
+        }
+    }
+
+    return X;
 }
 
 //
