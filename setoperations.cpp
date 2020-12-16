@@ -38,7 +38,7 @@ int main(){
     if(C.empty()){
         cout << "\nvacio";
     }
-
+    
     for(auto it=W.begin(); it!=W.end(); it++){
         for(auto it1=(it)->begin(); it1!=(it)->end(); it1++){
             cout << *it1 << " ";
