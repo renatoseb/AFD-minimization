@@ -7,7 +7,7 @@ class Automata{
     int initialState;
     vector<state> states;
     vector<bool> stateFinal;
-
+    vector<state_afn> reverse2;
     tuple<int,vector<state_afn>,vector<bool>> reverse();
     Automata powerset(tuple<int,vector<state_afn>,vector<bool>> afn);
 
@@ -32,7 +32,7 @@ class Automata{
         friend istream& operator>>(istream& ist, Automata& afd);
         friend ostream& operator<<(ostream& ost, Automata &afd);
         Automata create_automata(Automata,vector<int>, vector<vector<int>>);
-        vector<state_afn> reverse_2();
+        void reverse_2();
         set<int> can_reach(set<int> A, int c);
         int search_state(int destination, set<set<int>> &P);
         int getSize(){
@@ -250,15 +250,15 @@ vector<vector<bool>> Automata::secondPart(){
         }
     }
     set<pair<int,int>> s;
-    vector<state_afn> afn = reverse_2();
+    reverse_2();
     
     while(!q.empty()){
         //cout << q.size() << ' ';
         pair<int,int> e = q.front();
         q.pop();
         for(int i = 0; i < 2; i++){
-            vector<int> adjA = afn[e.first].adjacentes[i];
-            vector<int> adjB = afn[e.second].adjacentes[i];
+            vector<int> adjA = reverse2[e.first].adjacentes[i];
+            vector<int> adjB = reverse2[e.second].adjacentes[i];
             if(adjA.size() == 0 || adjB.size() == 0) continue;
             else{
                 for(int a : adjA){
@@ -401,9 +401,8 @@ int Automata::search_state(int destination, set<set<int>> &P){
 
 set<int> Automata::can_reach(set<int> A, int c){
     set<int> X;
-    vector<state_afn> reverse = reverse_2();
     for(auto it = A.begin(); it != A.end(); it++){
-        vector<int> reachableStates = reverse[*it].adjacentes[c];
+        vector<int> reachableStates = reverse2[*it].adjacentes[c];
         for(auto &i: reachableStates){
             X.insert(i);
         }
@@ -418,7 +417,9 @@ Automata Automata::hopcroft(){
     // Creamos los conjuntos P y W
     set<set<int>> P;
     set<set<int>> W;
-
+    
+    reverse_2();
+    
     set<int> notFinals;
     set<int> Finals;
 
@@ -467,11 +468,10 @@ Automata Automata::hopcroft(){
                         
                     }
                 }
-
-                
             }
         }
     }
+
     Automata MinAutomata;
     MinAutomata.states = vector<state>(P.size());
     MinAutomata.stateFinal = vector<bool>(P.size(),false);
@@ -577,7 +577,7 @@ ostream& operator<<(ostream& ost, Automata &afd){
     return ost;
 }
 
-vector<state_afn> Automata::reverse_2(){
+void Automata::reverse_2(){
     vector<state_afn> afn(states.size());                                             // Creamos un afn
 
     for(int i=0; i < states.size(); i++){                                              // Recorremos cada estado
@@ -591,5 +591,5 @@ vector<state_afn> Automata::reverse_2(){
             }
         }
     }
-    return afn;
+    reverse2 = afn;
 }
