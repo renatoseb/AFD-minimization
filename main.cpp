@@ -19,6 +19,11 @@ int main(){
     cin >> a;
     cout << "\n";
     auto matriz = a.equivalenceAlgorithm();
+    Automata c;
+    cin >> a;
+    cout << endl;
+    cout << "Tabla de Myhill Nerode Optimizado";
+    auto matriz = a.secondPart();
     for(int i = 1; i < matriz.size(); i++){
         for(int j = 0; j < i; j++){
             cout<< matriz[i][j] << " ";
@@ -27,5 +32,17 @@ int main(){
 
     }  
     cout <<'\n';
+
+    }  
+    cout << endl;
+
+    cout << "Minización Huffman-Moore";
+    b = a.huffman_moore();
+    cout << b << endl;
+
+    cout << "Minización Hopcroft";
+    c = a.hopcroft();
+    cout << c << endl;
+    
     return 0;
 }
