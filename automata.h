@@ -26,12 +26,15 @@ class Automata{
         Automata huffman_moore();
         
         // Problema 5
-        void hopcroft();
+        Automata hopcroft();
 
         // Adicionales
         friend istream& operator>>(istream& ist, Automata& afd);
         friend ostream& operator<<(ostream& ost, Automata &afd);
+        Automata create_automata(Automata,vector<int>, vector<vector<int>>);
+        vector<state_afn> reverse_2();
         set<int> can_reach(set<int> A, int c);
+        int search_state(int destination, set<set<int>> &P);
         int getSize(){
             return this->states.size();
         }
@@ -225,16 +228,15 @@ vector<vector<bool>> Automata::equivalenceAlgorithm(){
 //
 // Problema 3
 //
-vector<std::vector<bool>> Automata::secondPart(){
+vector<vector<bool>> Automata::secondPart(){
     int nStates = (int)states.size();
-    std::vector<std::vector<bool>> marked(nStates,std::vector<bool>(nStates));
+    vector<vector<bool>> marked(nStates,vector<bool>(nStates));
     queue<pair<int,int>> q;
     for(int i = 0; i < nStates;i++){
         for(int j = 0; j < nStates;j++){
             marked[i][j] = false;
         }
     }
-    // mark pairs Qi ∈ F and Qj ∉ F
     for(int i = 0; i < nStates; i++){
         if(stateFinal[i]){
             for(int j = 0; j < nStates;j++){
@@ -242,92 +244,137 @@ vector<std::vector<bool>> Automata::secondPart(){
                 if(!stateFinal[j]){
                     marked[i][j] = 1;
                     marked[j][i] = 1;
-                }
-            }
-        }else{
-            for(int j = 0; j < i;j++){
-                if(i == j) continue;
-                if(!stateFinal[j]){
                     q.push({i,j});
                 }
             }
         }
     }
+    set<pair<int,int>> s;
+    vector<state_afn> afn = reverse_2();
+    
     while(!q.empty()){
-        vector<pair<int,int>> vec;
-        pair<int,int> fState = q.front();
+        //cout << q.size() << ' ';
+        pair<int,int> e = q.front();
         q.pop();
-        vec.push_back(fState);
-        bool flag = false;
-        while(!marked[fState.first][fState.second]){
-            int changes = 0;
-            for(int i = 0; i < 2; i++){
-                if(states[fState.first].adjacentes[i] == states[fState.second].adjacentes[i]) continue;
-                if(!marked[states[fState.first].adjacentes[i]][states[fState.second].adjacentes[i]] && !marked[fState.first][fState.second]){
-                    fState = make_pair(states[fState.first].adjacentes[i], states[fState.second].adjacentes[i]);
-                    vec.push_back(fState);
-                    changes++;
-                }else{
-                    flag = true;
-                    vec.push_back(fState);
-                    changes = 0;
-                    break;
+        for(int i = 0; i < 2; i++){
+            vector<int> adjA = afn[e.first].adjacentes[i];
+            vector<int> adjB = afn[e.second].adjacentes[i];
+            if(adjA.size() == 0 || adjB.size() == 0) continue;
+            else{
+                for(int a : adjA){
+                    for(int b : adjB){
+                        if(a == b || marked[a][b] || marked[b][a]) continue;
+                        if(s.find({a,b}) == s.end() && s.find({b,a}) == s.end()){
+                            s.insert({a,b});
+                            q.push({a,b});
+                            marked[a][b] = 1;
+                            marked[b][a] = 1;
+                        }
+                    }
                 }
-            }
-            if(!changes){
-                break;
-            }
-        }
-        if(flag){
-            for(int i = 0; i < vec.size();i++){
-                marked[vec[i].first][vec[i].second] = 1;
-                marked[vec[i].second][vec[i].first] = 1;
             }
         }
     }
+    cout << endl;
     return marked;
 }
 
+//
 // Problema 4
-Automata Automata::huffman_moore(){
-    Automata automata;
-    
+//
+// Funcion que refibe un automata, un vector de indices de la tabla, y los equivalentes de cada indice segun la tabla
+Automata Automata::create_automata(Automata MinAutomata,vector<int> back_up, vector<vector<int>> temp_equivalence_states){
+    MinAutomata.initialState = initialState;
+    MinAutomata.states = vector<state>(back_up.size());
+    MinAutomata.stateFinal = vector<bool>(back_up.size(),false);
+    //add state finals
+    for(int i = 0; i < back_up.size(); i++){
+            if(stateFinal[back_up[i]]==true)
+                MinAutomata.stateFinal[i] = true;
+    }
+    //rename states equivalents
+    for(int i = 0; i < back_up.size();i++){
+        for(int j=0; j<=1;j++){
+            for(int l=0; l<temp_equivalence_states.size();l++){
+                for (int k=0; k<temp_equivalence_states[l].size();k++){
+                    //reemplazamos todos los conjuntos de estados que estan en el indice por el valor del indice
+                    if(temp_equivalence_states[l][k]==states[back_up[i]].adjacentes[j]){
+                        states[back_up[i]].adjacentes[j]=l;
+                    }
+                    //verificamos si existe algun estado inicial en ese indice y seteamos el indice como estado inicial
+                    if(temp_equivalence_states[l][k]==initialState)
+                        MinAutomata.initialState = l;                    
+                    //verificamos si existe algun estado final en ese indice y seteamos el indice como estado final
+                    if(stateFinal[temp_equivalence_states[l][k]]==true)
+                        MinAutomata.stateFinal[l] = true; }
+            }
+        }
+    }
+    //add transitions
+    for(int i = 0; i < back_up.size();i++){
+        for(int j=0; j<=1;j++){
+            for(int k = 0; k < back_up.size();k++){
+                //verificamos si en nuestro vector existe una transicion y seteamos la transicion con el nuevo estado k
+                if(states[back_up[i]].adjacentes[j]==back_up[k]){ 
+                    states[back_up[i]].adjacentes[j]=k;
+                }
+                MinAutomata.states[i].adjacentes[j]= states[back_up[i]].adjacentes[j];
+            }
+        }
+    }    
+    return MinAutomata;
+}
+
+Automata Automata::huffman_moore(){    
     // Paso 1
     // Armamos la tabla de estados distinguibles
     vector<vector<bool>> tableDistinct = this->equivalenceAlgorithm();
+    vector<vector<int>> temp_equivalence_states;
+    vector<int> temp_states;
+    vector<int> back_up;
+    int k=0;
+
+    //pusheamos todos los estados del input
+    for(int i=0; i<states.size();i++){
+        temp_states.push_back(i);
+    }
 
     // Paso 2
-    // Particion de estados
-    vector<set<int>> states;
-    for(int i = 1; i < tableDistinct.size(); i++){
-        for(int j = 0; j < i; j++){
-            
+    // Particion de estados    
+    for(int i = 0; i < tableDistinct.size(); i++){
+        //si encontramos el indice pusehamos y lo borramos para evitar el caso en que se repita
+        //si no, no hacemos nada
+        if (find(temp_states.begin(), temp_states.end(), i) != temp_states.end()){
+            back_up.push_back(i);
+            temp_states.erase(remove(temp_states.begin(), temp_states.end(), i), temp_states.end());
+            for(int j = tableDistinct.size()-1; j>0+i; j--){
+                //verificamos que este en el vector, sino no hacemos nada
+                if (find(temp_states.begin(), temp_states.end(), j) != temp_states.end()){
+                    // agregar bloques de estados que son equivalentes entre sí
+                    if(tableDistinct[j][i]==0){
+                        //redefinimos el tamaño del vector donde estaran los equivalentes
+                        temp_equivalence_states.resize(back_up.size());
+                        //pusheamos todos los equivalentes de un indice
+                        temp_equivalence_states[k].push_back(j);
+                        //eliminamos del vector para evitar el caso en que se repita
+                        temp_states.erase(remove(temp_states.begin(), temp_states.end(), j), temp_states.end());
+                    }
+                }
+            }
         }
+        k++;
     }
+
+    //Paso 3
+    //Construimos el AFD equivalente con menor numero de estados
+    Automata MinAutomata;
+    return create_automata(MinAutomata,back_up,temp_equivalence_states);
 }
 
 
 //
 // Problema 5
 //
-vector<state_afn> reverseAfd(vector<state> afd){
-    vector<state_afn> reverse(afd.size());
-
-    // invertimos transiciones
-    for(size_t i=0; i<afd.size(); i++){                                              // Recorremos cada estado
-        for(size_t j=0; j<2; ++j){                                                   // Recorremos las transiciones de cada estado
-            if(i == afd[i].adjacentes[j]){
-                reverse[i].adjacentes[j].push_back(i);
-            }
-            else{
-                int destinationState = afd[i].adjacentes[j];                         // Guardamos el destino
-                reverse[destinationState].adjacentes[j].push_back(i);
-            }
-        }
-    }
-    return reverse;
-}
-
 set<int> difference(set<int> A, set<int> B){
     set<int> C;
     set_difference(A.begin(),A.end(), B.begin(),B.end(), inserter(C,C.begin()));
@@ -340,8 +387,33 @@ set<int> intersection(set<int> A, set<int> B){
     return C;
 }
 
+int Automata::search_state(int destination, set<set<int>> &P){
+    int i = 0;
+    int pos;
+    for(auto it=P.begin(); it!=P.end(); it++){
+        for(auto it1=(it)->begin(); it1!=(it)->end(); it1++){
+            if(destination == *it1) return i;
+        }
+        i++;
+    }
 
-void Automata::hopcroft(){
+}
+
+set<int> Automata::can_reach(set<int> A, int c){
+    set<int> X;
+    vector<state_afn> reverse = reverse_2();
+    for(auto it = A.begin(); it != A.end(); it++){
+        vector<int> reachableStates = reverse[*it].adjacentes[c];
+        for(auto &i: reachableStates){
+            X.insert(i);
+        }
+    }   
+
+    return X;
+}
+
+
+Automata Automata::hopcroft(){
     
     // Creamos los conjuntos P y W
     set<set<int>> P;
@@ -365,8 +437,8 @@ void Automata::hopcroft(){
         // Escogemos y eliminamos un conjunto de W
         // y lo guardamos en A
         set<int> A = *(W.begin());
-        cout << "Hola\n";
         W.erase(W.begin());
+
         for(int c = 0; c < 2; c++){
 
             // Creamos el conjunto X
@@ -377,48 +449,59 @@ void Automata::hopcroft(){
                 set<int> Intersect = intersection(X,*Y);
                 set<int> Difference = difference(*Y,X);
                 if(!Intersect.empty() && !Difference.empty()){
-                    W.erase(*Y);
-                    W.insert(Intersect);
-                    W.insert(Difference);
-                }
-                else{
-                    if(Intersect.size() <= Difference.size()){
+                    P.erase(Y);
+                    P.insert(Intersect);
+                    P.insert(Difference);
+                    if(W.find(*Y) != W.end()){
+                        W.erase(Y);
                         W.insert(Intersect);
-                    }
-                    else{
                         W.insert(Difference);
                     }
-                    
+                    else{
+                        if(Intersect.size() <= Difference.size()){
+                            W.insert(Intersect);
+                        }
+                        else{
+                            W.insert(Difference);
+                        }
+                        
+                    }
                 }
+
+                
             }
         }
     }
-    cout << endl;
-    for(auto it=W.begin(); it!=W.end(); it++){
+    Automata MinAutomata;
+    MinAutomata.states = vector<state>(P.size());
+    MinAutomata.stateFinal = vector<bool>(P.size(),false);
+
+    // añadimos estado inicial y estados finales
+    int i = 0;
+    for(auto it = P.begin(); it!=P.end(); it++){
         for(auto it1=(it)->begin(); it1!=(it)->end(); it1++){
-            cout << *it1 << " ";
+            if(*it1 == initialState){
+                MinAutomata.initialState = i;
+            } 
+            else if(stateFinal[*it1] == true){
+                MinAutomata.stateFinal[i] = true;
+            } 
         }
-        cout << endl;
+        i++;
     }
-
-}
-
-
-
-
-set<int> Automata::can_reach(set<int> A, int c){
-    set<int> X;
-    vector<state_afn> reverse = reverseAfd(states);
-    for(auto it = A.begin(); it != A.end(); it++){
-        for(int transition = 0; transition < 2; transition++){
-            vector<int> reachableStates = reverse[*it].adjacentes[transition];
-            for(auto &i: reachableStates){
-                X.insert(i);
-            }
+    // añadimos los estados finales
+    i = 0;
+    for(auto it = P.begin(); it!=P.end(); it++){
+        auto it1 = (it)->begin();
+        for(int transition: {0,1}){
+            int destination = states[*it1].adjacentes[transition];
+            int pos = search_state(destination, P);
+            MinAutomata.states[i].adjacentes[transition] = pos;
         }
+        i++;
     }
+    return MinAutomata;
 
-    return X;
 }
 
 //
@@ -494,4 +577,19 @@ ostream& operator<<(ostream& ost, Automata &afd){
     return ost;
 }
 
+vector<state_afn> Automata::reverse_2(){
+    vector<state_afn> afn(states.size());                                             // Creamos un afn
 
+    for(int i=0; i < states.size(); i++){                                              // Recorremos cada estado
+        for(int j=0; j < 2; ++j){                                                      // Recorremos las transiciones de cada estado
+            if(i == states[i].adjacentes[j]){
+                afn[i].adjacentes[j].push_back(i);
+            }
+            else{
+                int destinationState = states[i].adjacentes[j];                         // Guardamos el destino
+                afn[destinationState].adjacentes[j].push_back(i);                       // Almacenamos en el destino el valor de salida
+            }
+        }
+    }
+    return afn;
+}
